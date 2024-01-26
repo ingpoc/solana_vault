@@ -19,16 +19,24 @@ Install the dependencies:
 yarn install
 Running the Application
 
-Running the Application
-Build the Rust programs:
-    cd src/program
-    cargo build-bpf
-    cd ../sum
-    cargo build-bpf
+Build the Application
+    npm run build:program
 
-Run the TypeScript scripts:
-    ts-node src/client/write-cred.ts
-    ts-node src/client/read-cred.ts    
+Deploy the Application
+    npm run deploy:program
+
+Run the Client (Write Credential)
+    npm start
+
+Run the Client (Read Credential)
+    npm run read
+
+Look at the logs of program
+    npm run logs:program
+
+
+All the solana commands are coded into package.json.
+
 
 Built With
 TypeScript
