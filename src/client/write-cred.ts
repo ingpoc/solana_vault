@@ -1,6 +1,5 @@
 import dotenv from 'dotenv';
 import path from 'path';
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 import {
     Connection, PublicKey, Transaction,
     sendAndConfirmTransaction, SystemProgram,
@@ -12,6 +11,8 @@ import { KeyPairUtil } from './util';
 import { getKeypairFromEnvironment } from "@solana-developers/helpers";
 import { serialize } from 'borsh';
 
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 class UserData {
     username: Buffer;
     password: Buffer;
@@ -22,7 +23,7 @@ class UserData {
     }
 }
 
-const userDataSchema = new Map([
+export const userDataSchema = new Map([
     [UserData, {
         kind: 'struct',
         fields: [
@@ -32,52 +33,29 @@ const userDataSchema = new Map([
     }],
 ]);
 
-
-let connection: Connection | null = null;
-let payerKeyPair: Keypair | null = null;
-let payerPublicKey: PublicKey | null = null;
-let programId: PublicKey | null = null;
-let programKeypair: Keypair | null = null;
-let clientPubKey: PublicKey | null = null;
-
-
-// Create Connection to Solana Devnet
-const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
+export const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
 
 export async function createConnection() {
     try {
-        if (!connection) {
-            connection = new Connection(SOLANA_DEVNET_URL, 'confirmed');
-        }
-        return connection;
+        return new Connection(SOLANA_DEVNET_URL, 'confirmed');
     } catch (error) {
         console.error('Error creating connection:', error);
         throw error;
     }
 }
 
-
-// Configure Client Account
-
-export async function configureClientAccount(accountSpaceSize: number) {
-
-    if (!payerKeyPair || !programId || !connection || !payerPublicKey) {
-        throw new Error('payerKeyPair, programId, or connection is not initialized');
-    }
-
+export async function configureClientAccount(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, accountSpaceSize: number) {
     const SEED = process.env.SEED || 'default_seed';
-    clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
+    const payerPublicKey = payerKeyPair.publicKey;
+    const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
 
     console.log(`Client public key: ${clientPubKey.toBase58()}`);
-
-    // Check if the account already exists
 
     const accountInfo = await connection.getAccountInfo(clientPubKey);
 
     if (accountInfo === null) {
         console.log('Creating account');
 
-        // Create the account
         const lamports = await connection.getMinimumBalanceForRentExemption(accountSpaceSize);
         const transaction = new Transaction().add(SystemProgram.createAccountWithSeed({
             fromPubkey: payerPublicKey,
@@ -89,98 +67,69 @@ export async function configureClientAccount(accountSpaceSize: number) {
             programId,
         }));
         await sendAndConfirmTransaction(connection, transaction, [payerKeyPair]);
-        // Request airdrop
-        console.log('Requesting airdrop');
-        //const airdropSignature = await connection.requestAirdrop(clientPubKey, LAMPORTS_PER_SOL);
-        // await connection.confirmTransaction(airdropSignature, 'confirmed');
+
         console.log('Account created');
-    } else
+    } else {
         console.log('Account already exists');
+    }
+
+    return clientPubKey;
 }
 
-
-// Trasact with program
-export async function transactWithProgram(instructionData: Uint8Array) {
-
-    if (!payerKeyPair || !programId || !connection || !clientPubKey) {
-        throw new Error('payerKeyPair, programId, or connection is not initialized');
-    }
-    // Create an insstruction
+async function transactWithProgram(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, clientPubKey: PublicKey, instructionData: Uint8Array) {
     const instruction = new TransactionInstruction({
         keys: [{ pubkey: clientPubKey, isSigner: false, isWritable: true }],
         programId,
-        data: Buffer.from(instructionData) // Convert Uint8Array to Buffer
-
+        data: Buffer.from(instructionData)
     });
 
-    // Send transaction
     const transaction = new Transaction().add(instruction);
     await sendAndConfirmTransaction(connection, transaction, [payerKeyPair]);
 
     console.log('Transaction sent');
 }
 
-
-
 async function main() {
-
     console.log('Hello, Solana!');
-    // Connect to devnet
-    await createConnection();
 
-    // Get public key of the program
-    programKeypair = await KeyPairUtil.getProgramKeypairFromJsonFile("program-keypair");
-    programId = programKeypair.publicKey;
+    const connection = await createConnection();
+
+    const programKeypair = await KeyPairUtil.getProgramKeypairFromJsonFile("program-keypair");
+    const programId = programKeypair.publicKey;
     console.log(`Program public key: ${programId}`);
 
-    // Specify the payer account
-    payerKeyPair = getKeypairFromEnvironment("SECRET_KEY");
-    payerPublicKey = payerKeyPair.publicKey;
+    const payerKeyPair = getKeypairFromEnvironment("SECRET_KEY");
+    const payerPublicKey = payerKeyPair.publicKey;
     console.log(`Payer public key: ${payerPublicKey.toBase58()}`);
 
-    // Configure client account
+    const clientPubKey = await configureClientAccount(connection, payerKeyPair, programId, 32);
 
-    await configureClientAccount(32);
+    const username = process.env.USERNAME || 'default_username';
+    const password = process.env.PASSWORD || 'default_password';
 
-    try {
-        // Encrypt the username and password
-        const username = process.env.USERNAME || 'default_username';
-        const password = process.env.PASSWORD || 'default_password';
+    const salt = process.env.SALT || 'default_salt';
+    const iv = process.env.IV || 'default_iv';
 
-        // Apply padding if username is less than 16 bytes
-        const paddedUsername = username.padEnd(16, '\0');
-        // Apply padding if password is less than 32 bytes
-        const paddedPassword = password.padEnd(16, '\0');
-
-        const encryptedUsername = await KeyPairUtil.encrypt(paddedUsername, payerKeyPair);
-        const encryptedPassword = await KeyPairUtil.encrypt(paddedPassword, payerKeyPair);
-        console.log('Encrypted username:', encryptedUsername.encrypted);
-        console.log('Encrypted password:', encryptedPassword.encrypted);
-        // Convert the encrypted username and password to bytes
-        const usernameBytes = Buffer.from(encryptedUsername.encrypted, 'hex');
-        const passwordBytes = Buffer.from(encryptedPassword.encrypted, 'hex');
-
-       
-
-        // Create a UserData instance
-        const userData = new UserData(usernameBytes, passwordBytes);
+    const saltBytes = Buffer.from(salt, 'hex');
+    const ivBytes = Buffer.from(iv, 'hex');
+    
 
 
-        // Serialize the UserData instance into bytes
-        const instructionData = serialize(userDataSchema, userData);
-       
+    const paddedUsername = username.padEnd(16, '\0');
+    const paddedPassword = password.padEnd(16, '\0');
 
-        // Transact with program
-        await transactWithProgram(instructionData);
+    const encryptedUsername = await KeyPairUtil.encrypt(paddedUsername, payerKeyPair, saltBytes, ivBytes);
+    const encryptedPassword = await KeyPairUtil.encrypt(paddedPassword, payerKeyPair, saltBytes, ivBytes);
 
-        console.log('Success');
+    const usernameBytes = Buffer.from(encryptedUsername.encrypted, 'hex');
+    const passwordBytes = Buffer.from(encryptedPassword.encrypted, 'hex');
 
-    } catch (error) {
-        console.error('An error occurred:', error);
-    }
+    const userData = new UserData(usernameBytes, passwordBytes);
+    const instructionData = serialize(userDataSchema, userData);
 
+    await transactWithProgram(connection, payerKeyPair, programId, clientPubKey, instructionData);
 
-
+    console.log('Success');
 }
 
 main().catch(err => {

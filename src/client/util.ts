@@ -16,19 +16,18 @@ export class KeyPairUtil {
         return randomBytes(16);
     }
 
-    static deriveKey(password: string, salt: Buffer): Buffer {
+    static deriveKey(payerKey: string, salt: Buffer): Buffer {
         try {
-            return pbkdf2Sync(password, salt, 100000, 32, 'sha512');
+            return pbkdf2Sync(payerKey, salt, 100000, 32, 'sha512');
         } catch (err) {
             console.error('Error deriving key:', err);
             throw err;
         }
     }
 
-    static async encrypt(credential: string, payerKeyPair: Keypair): Promise<{ encrypted: string, iv: Buffer, salt: Buffer }> {
-        const iv = randomBytes(16);
-        const salt = this.generateSalt();
-        const key = this.deriveKey(credential, salt);
+    static async encrypt(credential: string, payerKeyPair: Keypair, salt: Buffer, iv: Buffer): Promise<{ encrypted: string, iv: Buffer, salt: Buffer }> {
+    
+        const key = this.deriveKey(payerKeyPair.secretKey.toString(), salt);
 
         try {
             const cipher = createCipheriv('aes-256-gcm', key, iv);
@@ -42,12 +41,12 @@ export class KeyPairUtil {
     }
 
 
-    static async decrypt(encryptedCredenial: string, payerKeyPair: Keypair, iv: Buffer, salt: Buffer): Promise<string> {
+    static async decrypt(encrypted: string, payerKeyPair: Keypair, salt: Buffer, iv: Buffer): Promise<string> {
+        const key = this.deriveKey(payerKeyPair.secretKey.toString(), salt);
+    
         try {
-            const key = this.deriveKey(Buffer.from(payerKeyPair.secretKey).toString('hex'), salt);
-
             const decipher = createDecipheriv('aes-256-gcm', key, iv);
-            let decrypted = decipher.update(encryptedCredenial, 'hex', 'utf8');
+            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
             return decrypted;
         } catch (err) {
