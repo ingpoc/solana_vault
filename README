@@ -1,0 +1,47 @@
+Project Title
+This project is a TypeScript application that interacts with the Solana blockchain. It includes functionality for reading and writing encrypted credentials.
+
+Getting Started
+These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+
+Prerequisites
+Node.js and npm: You can download these from here.
+Yarn: You can install it using npm:
+Rust: You can download it from here.
+Solana CLI: You can install it by following the instructions here.
+
+Installing
+Clone the repository:
+git clone <repository_url>
+Navigate to the project directory:
+cd <project_directory>
+Install the dependencies:
+yarn install
+Running the Application
+
+Running the Application
+Build the Rust programs:
+    cd src/program
+    cargo build-bpf
+    cd ../sum
+    cargo build-bpf
+
+Run the TypeScript scripts:
+    ts-node src/client/write-cred.ts
+    ts-node src/client/read-cred.ts    
+
+Built With
+TypeScript
+Rust
+Solana
+Contributing
+Please read CONTRIBUTING.md for details on our code of conduct, and the process for submitting pull requests to us.
+
+License
+This project is licensed under the MIT License - see the LICENSE.md file for details.
+
+Acknowledgments
+Hat tip to anyone whose code was used
+Inspiration
+etc
+Please replace <repository_url> and <project_directory> with the actual repository URL and project directory. Also, you might want to add or modify sections according to your project's needs.
