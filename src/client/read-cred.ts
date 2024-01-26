@@ -6,7 +6,6 @@ import {
 import { KeyPairUtil } from './util';
 import { getKeypairFromEnvironment } from "@solana-developers/helpers";
 import { deserialize } from 'borsh';
-import { SOLANA_DEVNET_URL, createConnection } from './write-cred';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -20,12 +19,15 @@ class UserData {
     }
 }
 
- const userDataSchema = new Map([
+const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
+
+
+export const userDataSchema = new Map([
     [UserData, {
         kind: 'struct',
         fields: [
-            ['username', 'Buffer'],
-            ['password', 'Buffer'],
+            ['username', [16]],
+            ['password', [16]],
         ],
     }],
 ]);
@@ -40,12 +42,28 @@ async function readCredentials(connection: Connection, clientPubKey: PublicKey, 
     
         const saltBytes = Buffer.from(salt, 'hex');
         const ivBytes = Buffer.from(iv, 'hex');
-        const decryptedUsername = await KeyPairUtil.decrypt(userData.username.toString('hex'), payerKeyPair, saltBytes, ivBytes);
-        const decryptedPassword = await KeyPairUtil.decrypt(userData.password.toString('hex'), payerKeyPair, saltBytes, ivBytes);
+
+        const authTagUsername = process.env.AUTH_TAG_USERNAME || 'default_auth_tag';
+        const authTagPassword = process.env.AUTH_TAG_PASSWORD || 'default_auth_tag';
+
+        const authTagUsernameBytes = Buffer.from(authTagUsername, 'hex');
+        const authTagPasswordBytes = Buffer.from(authTagPassword, 'hex');
+
+        const decryptedUsername = await KeyPairUtil.decrypt(userData.username, payerKeyPair, saltBytes, ivBytes, authTagUsernameBytes);
+        const decryptedPassword = await KeyPairUtil.decrypt(userData.password, payerKeyPair, saltBytes, ivBytes, authTagPasswordBytes);
         return { username: decryptedUsername, password: decryptedPassword };
     }
 
     return null;
+}
+
+export async function createConnection() {
+    try {
+        return new Connection(SOLANA_DEVNET_URL, 'confirmed');
+    } catch (error) {
+        console.error('Error creating connection:', error);
+        throw error;
+    }
 }
 
 async function main() {
@@ -55,15 +73,15 @@ async function main() {
 
     const payerKeyPair = getKeypairFromEnvironment("SECRET_KEY");
     const payerPublicKey = payerKeyPair.publicKey;
-    console.log(`Payer public key: ${payerPublicKey.toBase58()}`);
+    console.log(`Payer public keyz: ${payerPublicKey.toBase58()}`);
 
     const SEED = process.env.SEED || 'default_seed';
     const programKeypair = await KeyPairUtil.getProgramKeypairFromJsonFile("program-keypair");
     const programId = programKeypair.publicKey;
-    console.log(`Program public key: ${programId}`);
+   console.log(`Program public keyz: ${programId}`);
 
     const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
-    console.log(`Client public key: ${clientPubKey.toBase58()}`);
+    console.log(`Client public keyz: ${clientPubKey.toBase58()}`);
 
     const credentials = await readCredentials(connection, clientPubKey, payerKeyPair);
     console.log(`Username: ${credentials?.username}`);

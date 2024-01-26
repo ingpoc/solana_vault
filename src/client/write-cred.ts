@@ -33,9 +33,9 @@ export const userDataSchema = new Map([
     }],
 ]);
 
-export const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
+ const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
 
-export async function createConnection() {
+ async function createConnection() {
     try {
         return new Connection(SOLANA_DEVNET_URL, 'confirmed');
     } catch (error) {
@@ -44,7 +44,7 @@ export async function createConnection() {
     }
 }
 
-export async function configureClientAccount(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, accountSpaceSize: number) {
+ async function configureClientAccount(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, accountSpaceSize: number) {
     const SEED = process.env.SEED || 'default_seed';
     const payerPublicKey = payerKeyPair.publicKey;
     const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
