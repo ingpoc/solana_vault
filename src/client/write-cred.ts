@@ -5,7 +5,8 @@ import {
     Connection, PublicKey, Transaction,
     sendAndConfirmTransaction, SystemProgram,
     TransactionInstruction,
-    Keypair
+    Keypair,
+    LAMPORTS_PER_SOL
 } from '@solana/web3.js';
 import { KeyPairUtil } from './util';
 import { getKeypairFromEnvironment } from "@solana-developers/helpers";
@@ -25,8 +26,8 @@ const userDataSchema = new Map([
     [UserData, {
         kind: 'struct',
         fields: [
-            ['username', [32]],
-            ['password', [32]],
+            ['username', [16]],
+            ['password', [16]],
         ],
     }],
 ]);
@@ -88,7 +89,10 @@ export async function configureClientAccount(accountSpaceSize: number) {
             programId,
         }));
         await sendAndConfirmTransaction(connection, transaction, [payerKeyPair]);
-
+        // Request airdrop
+        console.log('Requesting airdrop');
+        //const airdropSignature = await connection.requestAirdrop(clientPubKey, LAMPORTS_PER_SOL);
+        // await connection.confirmTransaction(airdropSignature, 'confirmed');
         console.log('Account created');
     } else
         console.log('Account already exists');
@@ -136,27 +140,27 @@ async function main() {
 
     // Configure client account
 
-    await configureClientAccount(1000);
+    await configureClientAccount(32);
 
     try {
         // Encrypt the username and password
         const username = process.env.USERNAME || 'default_username';
         const password = process.env.PASSWORD || 'default_password';
 
-        // Apply padding if username is less than 32 bytes
-        const paddedUsername = username.padEnd(32, '\0');
+        // Apply padding if username is less than 16 bytes
+        const paddedUsername = username.padEnd(16, '\0');
         // Apply padding if password is less than 32 bytes
-        const paddedPassword = password.padEnd(32, '\0');
+        const paddedPassword = password.padEnd(16, '\0');
 
         const encryptedUsername = await KeyPairUtil.encrypt(paddedUsername, payerKeyPair);
         const encryptedPassword = await KeyPairUtil.encrypt(paddedPassword, payerKeyPair);
-
+        console.log('Encrypted username:', encryptedUsername.encrypted);
+        console.log('Encrypted password:', encryptedPassword.encrypted);
         // Convert the encrypted username and password to bytes
         const usernameBytes = Buffer.from(encryptedUsername.encrypted, 'hex');
         const passwordBytes = Buffer.from(encryptedPassword.encrypted, 'hex');
 
-        console.log('Encrypted username:', usernameBytes);
-        console.log('Encrypted password:', passwordBytes);
+       
 
         // Create a UserData instance
         const userData = new UserData(usernameBytes, passwordBytes);
@@ -164,7 +168,7 @@ async function main() {
 
         // Serialize the UserData instance into bytes
         const instructionData = serialize(userDataSchema, userData);
-        console.log('Instruction data:', instructionData);
+       
 
         // Transact with program
         await transactWithProgram(instructionData);

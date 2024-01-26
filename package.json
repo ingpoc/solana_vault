@@ -7,7 +7,8 @@
         "url": "https://github.com/Coding-and-Crypto/Rust-Solana-Tutorial.git"
     },
     "scripts": {
-        "start": "ts-node src/client/main.ts",
+        "start": "ts-node src/client/write-cred.ts",
+        "read": "ts-node src/client/read-cred.ts",
         "clean": "npm run clean:program",
         "build:program": "cargo build-bpf --manifest-path=./src/sum/Cargo.toml --bpf-out-dir=dist/sum",
         "deploy:program": "solana program deploy ./dist/sum/program.so",

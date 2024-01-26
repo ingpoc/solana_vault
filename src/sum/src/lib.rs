@@ -10,9 +10,11 @@ use solana_program::{
 
 #[derive(BorshDeserialize, BorshSerialize)]
 pub struct UserData {
-    username: [u8; 32],
-    password: [u8; 32],
+    username: [u8; 16],
+    password: [u8; 16],
 }
+
+const USER_DATA_LEN: usize = 32; // 16 bytes for username and 16 bytes for password
 
 entrypoint!(process_instruction);
 
@@ -25,39 +27,27 @@ pub fn process_instruction(
     let account = next_account_info(accounts_iter)?;
 
     if account.owner != program_id {
-        msg!("Account does not have the correct program id");
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    msg!("Execution start of the Credential Manager program");
-
-    if input.len() < UserData::try_to_vec(&UserData { username: [0u8; 32], password: [0u8; 32] }).unwrap().len() {
-        msg!("The input data is too short");
+    if input.len() < USER_DATA_LEN {
         return Err(ProgramError::InvalidInstructionData);
     }
 
     let user_data: UserData = UserData::try_from_slice(input)?;
-
+    
+    let mut account_data = account.try_borrow_mut_data()?;
     msg!("Username: {:?}", user_data.username);
     msg!("Password: {:?}", user_data.password);
+    let user_data_vec = borsh::BorshSerialize::try_to_vec(&user_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    
+    
+    if user_data_vec.len() > account_data.len() {
+        return Err(ProgramError::InsufficientFunds);
+    }
 
-    let mut account_data = account.try_borrow_mut_data()?;
-
-// Log the current state of account_data
-msg!("Account data before copy: {:?}", &account_data[..]);
-
-// Check length of source and destination slices
-if user_data.try_to_vec()?.len() > account_data.len() {
-    msg!("User data length : {:?}", user_data.try_to_vec()?.len());
-    msg!("Account data length : {:?}", account_data.len());
-    msg!("The input data is too large for the account data");
-    return Err(ProgramError::AccountDataTooSmall);
-}else{
-    account_data[..].copy_from_slice(&user_data.try_to_vec()?);
-    // Log the state of account_data after the copy
-    msg!("Account data after copy: {:?}", &account_data[..]);
-}
-
+    account_data[..].copy_from_slice(&user_data_vec);
 
     Ok(())
 }
