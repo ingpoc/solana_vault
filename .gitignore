@@ -1,0 +1,20 @@
+# Ignore Rust build artifacts
+**/target/
+**/*.rs.bk
+
+# Ignore Node modules
+/node_modules/
+
+# Ignore environment variables
+.env
+
+# Ignore IDE specific files
+.vscode/
+*.iml
+.idea/
+
+# Ignore payer keypair file
+payer-keypair.json
+
+# Ignore dist folder
+/dist/
