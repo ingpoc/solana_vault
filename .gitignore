@@ -18,3 +18,4 @@ payer-keypair.json
 
 # Ignore dist folder
 /dist/
+/dist1/

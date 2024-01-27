@@ -16,7 +16,9 @@
         "logs:program": "solana logs | grep 'ArrWmpZyyE7UdaPGY57QAnzHE9d2vHGtHZUDCrtY29NL' -A 5",
         "clean:program": "cargo clean --manifest-path=./src/program/Cargo.toml && rm -rf ./dist",
         "test:program": "cargo test-bpf --manifest-path=./src/program/Cargo.toml",
-        "close:program": "solana program close C46t5beM3J1jGsRD6BVTHN66RpDM5Wb63F479gQALDGC --keypair ./payer-keypair.json --bypass-warning"
+        "close:program": "solana program close C46t5beM3J1jGsRD6BVTHN66RpDM5Wb63F479gQALDGC --keypair ./payer-keypair.json --bypass-warning",
+        "build:extension": "rimraf dist1 && webpack --mode development --config webpack.config.js",
+        "watch:extension": "webpack --mode development --config webpack.config.js --watch"
     },
     "dependencies": {
         "@solana-developers/helpers": "^1.3.1",
@@ -24,12 +26,20 @@
         "@solana/web3.js": "^1.38.0",
         "bcrypt": "^5.1.1",
         "dotenv": "^16.3.1",
-        "mz": "^2.7.0"
+        "mz": "^2.7.0",
+        "rimraf": "^5.0.5",
+        "webextension-polyfill-ts": "^0.26.0"
     },
     "devDependencies": {
         "@tsconfig/recommended": "^1.0.1",
+        "@types/chrome": "^0.0.126",
         "@types/mz": "^2.7.3",
+        "@types/node": "^20.11.7",
+        "copy-webpack-plugin": "^10.2.1",
+        "ts-loader": "^9.2.6",
         "ts-node": "^10.4.0",
-        "typescript": "^4.5.2"
+        "typescript": "^4.5.2",
+        "webpack": "^5.64.4",
+        "webpack-cli": "^4.9.1"
     }
 }
