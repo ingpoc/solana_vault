@@ -1,54 +1,60 @@
-/* FILEPATH: /g:/Projects/SolanadApp/solana_vault/src/client/extension/popup.css */
-
-/* Reset default styles */
-body, html {
+body {
+    height: 575px;
+    font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
+    background-color: #000000;
+    width: 375px;
+    padding: 1px;
+    border: 2px solid #050505;
+    border-radius: 0.5rem;
 }
 
-/* Style the popup container */
-.popup-container {
-    width: 300px;
-    height: 200px;
-    background-color: #f1f1f1;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-/* Style the popup content */
-.popup-content {
-    text-align: center;
-}
-
-/* Style the popup heading */
-.popup-heading {
+.title {
     font-size: 24px;
-    font-weight: bold;
+    color: #333;
     margin-bottom: 10px;
 }
 
-/* Style the popup message */
-.popup-message {
-    font-size: 16px;
-    color: #333;
-}
-
-/* Style the popup button */
-.popup-button {
+.button {
     padding: 10px 20px;
-    background-color: #007bff;
+    background-color: #007BFF;
     color: #fff;
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 16px;
-    margin-top: 20px;
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
 }
 
-.popup-button:hover {
-    background-color: #0056b3;
+.result-container {
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #fff;
+    color: #333;
+    height: 100px;
+    overflow-y: auto;
+}
+
+.footer {
+    font-size: 16px;
+    color: #666;
+    text-align: center;
+}
+/* Add your existing CSS here */
+
+/* Style for header */
+header {
+    background-color: #3a3b3b; /* Change this to your preferred color */
+    padding: 1px;
+    text-align: center;
+    border-bottom: 1px solid #bebfc1; /* Change this to your preferred color */
+}
+
+.title {
+    color: #ffffff; /* Change this to your preferred color */
+    font-size: 24px;
+    font-weight: bold;
 }

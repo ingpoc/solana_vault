@@ -1,13 +1,9 @@
-import dotenv from 'dotenv';
-import path from 'path';
 import {
-    Connection, PublicKey, Keypair
+    Connection, PublicKey
 } from '@solana/web3.js';
 import { KeyPairUtil } from './util';
-import { getKeypairFromEnvironment } from "@solana-developers/helpers";
 import { deserialize } from 'borsh';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare';
 
 class UserData {
     username: Buffer;
@@ -32,25 +28,25 @@ export const userDataSchema = new Map([
     }],
 ]);
 
-async function readCredentials(connection: Connection, clientPubKey: PublicKey, payerKeyPair: Keypair) {
+async function readCredentials(connection: Connection, clientPubKey: PublicKey, payerPublicKey: PublicKey) {
     const accountInfo = await connection.getAccountInfo(clientPubKey);
 
     if (accountInfo !== null) {
         const userData = deserialize(userDataSchema, UserData, accountInfo.data);
-        const salt = process.env.SALT || 'default_salt';
-        const iv = process.env.IV || 'default_iv';
-    
+        const salt = '9b2052b10bcfc70d707071c4847e6986';
+        const iv = '152f2452bed04df88ffd5a0dc9a5b130';
+
         const saltBytes = Buffer.from(salt, 'hex');
         const ivBytes = Buffer.from(iv, 'hex');
 
-        const authTagUsername = process.env.AUTH_TAG_USERNAME || 'default_auth_tag';
-        const authTagPassword = process.env.AUTH_TAG_PASSWORD || 'default_auth_tag';
+        const authTagUsername = '4c7c25b99329073d45bca23b7b2eed1c';
+        const authTagPassword = '65debe0c38dc25a56fe96a69b9284db7';
 
         const authTagUsernameBytes = Buffer.from(authTagUsername, 'hex');
         const authTagPasswordBytes = Buffer.from(authTagPassword, 'hex');
 
-        const decryptedUsername = await KeyPairUtil.decrypt(userData.username, payerKeyPair, saltBytes, ivBytes, authTagUsernameBytes);
-        const decryptedPassword = await KeyPairUtil.decrypt(userData.password, payerKeyPair, saltBytes, ivBytes, authTagPasswordBytes);
+        const decryptedUsername = await KeyPairUtil.decrypt(userData.username, payerPublicKey, saltBytes, ivBytes, authTagUsernameBytes);
+        const decryptedPassword = await KeyPairUtil.decrypt(userData.password, payerPublicKey, saltBytes, ivBytes, authTagPasswordBytes);
         return { username: decryptedUsername, password: decryptedPassword };
     }
 
@@ -66,29 +62,36 @@ export async function createConnection() {
     }
 }
 
-async function main() {
+export async function main() {
     console.log('Reading credentials');
 
     const connection = await createConnection();
 
-    const payerKeyPair = getKeypairFromEnvironment("SECRET_KEY");
-    const payerPublicKey = payerKeyPair.publicKey;
-    console.log(`Payer public keyz: ${payerPublicKey.toBase58()}`);
+    const wallet = new SolflareWalletAdapter();
+    await wallet.connect();
+    const payerPublicKey = wallet.publicKey;
 
-    const SEED = process.env.SEED || 'default_seed';
-    const programKeypair = await KeyPairUtil.getProgramKeypairFromJsonFile("program-keypair");
-    const programId = programKeypair.publicKey;
-   console.log(`Program public keyz: ${programId}`);
+    if (payerPublicKey !== null) {
+        console.log(`Payer public keyz: ${payerPublicKey.toBase58()}`);
 
-    const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
-    console.log(`Client public keyz: ${clientPubKey.toBase58()}`);
 
-    const credentials = await readCredentials(connection, clientPubKey, payerKeyPair);
-    console.log(`Username: ${credentials?.username}`);
-    console.log(`Password: ${credentials?.password}`);
+        const SEED = 'your_seed3';
+        const programIdString = 'ArrWmpZyyE7UdaPGY57QAnzHE9d2vHGtHZUDCrtY29NL'
+        const programId = new PublicKey(programIdString);
+        console.log(`Program public keyz: ${programId}`);
+
+        const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
+        console.log(`Client public keyz: ${clientPubKey.toBase58()}`);
+
+        const credentials = await readCredentials(connection, clientPubKey, payerPublicKey);
+        console.log(`Username: ${credentials?.username}`);
+        console.log(`Password: ${credentials?.password}`);
+
+    }
+
 }
 
 main().catch(err => {
-    console.error(err);
-    process.exit(1);
+    console.log(err);
+    // Display an error message to the user, retry the operation, etc.
 });

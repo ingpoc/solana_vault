@@ -3,17 +3,24 @@
     "version": "0.0.0.1",
     "manifest_version": 3,
     "description": "A Microsoft Edge extension for your dApp",
-    "permissions": ["storage", "activeTab", "scripting","tabs"],
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting",
+        "tabs"
+    ],
     "background": {
-        "service_worker": "client/extension/background/index.js",
-        "persistent": false
+        "service_worker": "background.js"
     },
-    "browser_action": {
-        "default_popup": "client/extension/popup.html",
+    "action": {
+        "default_popup": "./client/extension/popup.html",
         "default_icon": {
             "16": "icons/icon16.png",
             "48": "icons/icon48.png",
             "128": "icons/icon128.png"
-        }
+        },
+        "default_title": "My Extension",
+        "default_width": 600,
+        "default_height": 500
     }
 }

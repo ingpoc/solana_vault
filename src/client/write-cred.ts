@@ -1,17 +1,12 @@
-import dotenv from 'dotenv';
-import path from 'path';
 import {
     Connection, PublicKey, Transaction,
-    sendAndConfirmTransaction, SystemProgram,
-    TransactionInstruction,
-    Keypair,
-    LAMPORTS_PER_SOL
+    SystemProgram,
+    TransactionInstruction
 } from '@solana/web3.js';
 import { KeyPairUtil } from './util';
-import { getKeypairFromEnvironment } from "@solana-developers/helpers";
 import { serialize } from 'borsh';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+import Solflare from '@solflare-wallet/sdk';
+import { Buffer } from 'buffer';
 
 class UserData {
     username: Buffer;
@@ -33,9 +28,9 @@ export const userDataSchema = new Map([
     }],
 ]);
 
- const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
+const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
 
- async function createConnection() {
+async function createConnection() {
     try {
         return new Connection(SOLANA_DEVNET_URL, 'confirmed');
     } catch (error) {
@@ -44,30 +39,31 @@ export const userDataSchema = new Map([
     }
 }
 
- async function configureClientAccount(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, accountSpaceSize: number) {
-    const SEED = process.env.SEED || 'default_seed';
-    const payerPublicKey = payerKeyPair.publicKey;
+async function configureClientAccount(connection: Connection, payerPublicKey: PublicKey, programId: PublicKey, wallet: Solflare) {
+    const SEED = 'your_seed3'; // TO DO: change this to a random string
     const clientPubKey = await PublicKey.createWithSeed(payerPublicKey, SEED, programId);
 
     console.log(`Client public key: ${clientPubKey.toBase58()}`);
 
     const accountInfo = await connection.getAccountInfo(clientPubKey);
-
+    const { blockhash } = await connection.getLatestBlockhash("finalized")
     if (accountInfo === null) {
         console.log('Creating account');
-
-        const lamports = await connection.getMinimumBalanceForRentExemption(accountSpaceSize);
+        // Ensure the wallet is connected before using it
+        const lamports = await connection.getMinimumBalanceForRentExemption(32);
         const transaction = new Transaction().add(SystemProgram.createAccountWithSeed({
             fromPubkey: payerPublicKey,
             basePubkey: payerPublicKey,
             seed: SEED,
             newAccountPubkey: clientPubKey,
             lamports,
-            space: accountSpaceSize,
+            space: 32,
             programId,
         }));
-        await sendAndConfirmTransaction(connection, transaction, [payerKeyPair]);
+        transaction.recentBlockhash = blockhash;
 
+        // Sign the transaction
+        const signedTransaction = await wallet.signAndSendTransaction(transaction);
         console.log('Account created');
     } else {
         console.log('Account already exists');
@@ -76,63 +72,95 @@ export const userDataSchema = new Map([
     return clientPubKey;
 }
 
-async function transactWithProgram(connection: Connection, payerKeyPair: Keypair, programId: PublicKey, clientPubKey: PublicKey, instructionData: Uint8Array) {
+async function transactWithProgram(connection: Connection, payerPublicKey: PublicKey, programId: PublicKey, clientPubKey: PublicKey, instructionData: Uint8Array, wallet: Solflare) {
+    const { blockhash } = await connection.getRecentBlockhash("finalized");
     const instruction = new TransactionInstruction({
         keys: [{ pubkey: clientPubKey, isSigner: false, isWritable: true }],
         programId,
         data: Buffer.from(instructionData)
     });
 
+
     const transaction = new Transaction().add(instruction);
-    await sendAndConfirmTransaction(connection, transaction, [payerKeyPair]);
+    transaction.feePayer = payerPublicKey;
+    const blockhashResponse = await connection.getRecentBlockhash();
+    console.log(blockhashResponse);
+    transaction.recentBlockhash = blockhashResponse.blockhash;
+
+    const lastValidBlockHeight = Number(blockhashResponse.blockhash) + 150; // Fix: Convert 'blockhash' from string to number
+
+    const signedTransaction = await wallet.signTransaction(transaction);
+    const rawTransaction = await signedTransaction.serialize();
+
+    let blockheight = await connection.getBlockHeight();
+
+    while (blockheight < lastValidBlockHeight) {
+        const transaction = new Transaction().add(instruction);
+        transaction.feePayer = payerPublicKey;
+        transaction.recentBlockhash = blockhashResponse.blockhash;
+    
+        const signedTransaction = await wallet.signTransaction(transaction);
+        await wallet.signAndSendTransaction(signedTransaction);
+    
+        blockheight = await connection.getBlockHeight();
+    }
 
     console.log('Transaction sent');
 }
 
-async function main() {
+export async function main() {
     console.log('Hello, Solana!');
 
     const connection = await createConnection();
+    console.log('Connection established');
 
-    const programKeypair = await KeyPairUtil.getProgramKeypairFromJsonFile("program-keypair");
-    const programId = programKeypair.publicKey;
+
+    const programIdString = 'ArrWmpZyyE7UdaPGY57QAnzHE9d2vHGtHZUDCrtY29NL'
+    const programId = new PublicKey(programIdString);
     console.log(`Program public key: ${programId}`);
+    const wallet = new Solflare();
+    await wallet.connect();
+    try {
+        wallet.on('connect', () => {
+            console.log('connected');
+        });
+    } catch (error) {
+        console.error('Failed to connect wallet', error);
+    }
 
-    const payerKeyPair = getKeypairFromEnvironment("SECRET_KEY");
-    const payerPublicKey = payerKeyPair.publicKey;
-    console.log(`Payer public key: ${payerPublicKey.toBase58()}`);
+    const payerPublicKey = wallet.publicKey;
 
-    const clientPubKey = await configureClientAccount(connection, payerKeyPair, programId, 32);
-
-    const username = process.env.USERNAME || 'default_username';
-    const password = process.env.PASSWORD || 'default_password';
-
-    const salt = process.env.SALT || 'default_salt';
-    const iv = process.env.IV || 'default_iv';
-
-    const saltBytes = Buffer.from(salt, 'hex');
-    const ivBytes = Buffer.from(iv, 'hex');
-    
+    if (payerPublicKey !== null) {
 
 
-    const paddedUsername = username.padEnd(16, '\0');
-    const paddedPassword = password.padEnd(16, '\0');
 
-    const encryptedUsername = await KeyPairUtil.encrypt(paddedUsername, payerKeyPair, saltBytes, ivBytes);
-    const encryptedPassword = await KeyPairUtil.encrypt(paddedPassword, payerKeyPair, saltBytes, ivBytes);
+        const clientPubKey = await configureClientAccount(connection, payerPublicKey, programId, wallet);
 
-    const usernameBytes = Buffer.from(encryptedUsername.encrypted, 'hex');
-    const passwordBytes = Buffer.from(encryptedPassword.encrypted, 'hex');
+        const username = 'your_username';
+        const password = 'your_password';
 
-    const userData = new UserData(usernameBytes, passwordBytes);
-    const instructionData = serialize(userDataSchema, userData);
+        const salt = '9b2052b10bcfc70d707071c4847e6986';
+        const iv = '152f2452bed04df88ffd5a0dc9a5b130';
 
-    await transactWithProgram(connection, payerKeyPair, programId, clientPubKey, instructionData);
+        const saltBytes = Buffer.from(salt, 'hex');
+        const ivBytes = Buffer.from(iv, 'hex');
 
-    console.log('Success');
+
+
+        const paddedUsername = username.padEnd(16, '\0');
+        const paddedPassword = password.padEnd(16, '\0');
+
+        const encryptedUsername = await KeyPairUtil.encrypt(paddedUsername, payerPublicKey, saltBytes, ivBytes);
+        const encryptedPassword = await KeyPairUtil.encrypt(paddedPassword, payerPublicKey, saltBytes, ivBytes);
+
+        const usernameBytes = Buffer.from(encryptedUsername.encrypted, 'hex');
+        const passwordBytes = Buffer.from(encryptedPassword.encrypted, 'hex');
+
+        const userData = new UserData(usernameBytes, passwordBytes);
+        const instructionData = serialize(userDataSchema, userData);
+
+        await transactWithProgram(connection, payerPublicKey, programId, clientPubKey, instructionData, wallet);
+
+        console.log('Success');
+    }
 }
-
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
