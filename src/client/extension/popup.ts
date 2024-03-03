@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     } */
 
+
+    
     if (writeCredBtn) {
         // Add a click event listener to the 'Write Cred' button
         writeCredBtn.addEventListener('click', () => {

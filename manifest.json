@@ -22,5 +22,13 @@
         "default_title": "My Extension",
         "default_width": 600,
         "default_height": 500
-    }
+    },
+    "content_scripts": [
+        {
+            "js": [
+                "content-script.js"
+            ],
+            "matches": ["<all_urls>"]   
+        }
+    ]
 }

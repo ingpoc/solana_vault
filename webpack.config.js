@@ -54,6 +54,7 @@ module.exports = {
                 { from: './manifest.json', to: '.' },
                 { from: 'src/client/extension/popup.html', to: './client/extension' },
                 { from: 'src/client/extension/popup.css', to: './client/extension' },
+                { from: 'src/client/extension/content-script.js', to: '.' },
                 { from: 'icons/', to: 'icons/' } // This line copies all files in the 'icons' directory
                 // Add any other files or directories you want to copy to 'dist' here
             ],

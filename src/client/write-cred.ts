@@ -30,6 +30,24 @@ export const userDataSchema = new Map([
 
 const SOLANA_DEVNET_URL = 'https://api.devnet.solana.com';
 
+const wallet = new Solflare();
+
+wallet.on('connect', () => {
+    if (wallet.publicKey) {
+        console.log('Connected to wallet with public key:', wallet.publicKey.toString());
+    }
+});
+wallet.on('disconnect', () => console.log('Disconnected from wallet'));
+
+async function connectWallet() {
+    try {
+        await wallet.connect();
+    } catch (err: any) {
+        console.error('Failed to connect to wallet:', err.message);
+        console.error(err.stack);
+    }
+}
+
 async function createConnection() {
     try {
         return new Connection(SOLANA_DEVNET_URL, 'confirmed');
@@ -80,7 +98,10 @@ async function transactWithProgram(connection: Connection, payerPublicKey: Publi
         data: Buffer.from(instructionData)
     });
 
-
+    if (!wallet.connected) {
+        console.error('Wallet is not connected');
+        // Retry connection or handle error
+    }
     const transaction = new Transaction().add(instruction);
     transaction.feePayer = payerPublicKey;
     const blockhashResponse = await connection.getRecentBlockhash();
@@ -98,10 +119,10 @@ async function transactWithProgram(connection: Connection, payerPublicKey: Publi
         const transaction = new Transaction().add(instruction);
         transaction.feePayer = payerPublicKey;
         transaction.recentBlockhash = blockhashResponse.blockhash;
-    
+
         const signedTransaction = await wallet.signTransaction(transaction);
         await wallet.signAndSendTransaction(signedTransaction);
-    
+
         blockheight = await connection.getBlockHeight();
     }
 
@@ -110,7 +131,7 @@ async function transactWithProgram(connection: Connection, payerPublicKey: Publi
 
 export async function main() {
     console.log('Hello, Solana!');
-
+   
     const connection = await createConnection();
     console.log('Connection established');
 
@@ -119,20 +140,14 @@ export async function main() {
     const programId = new PublicKey(programIdString);
     console.log(`Program public key: ${programId}`);
     const wallet = new Solflare();
-    await wallet.connect();
-    try {
-        wallet.on('connect', () => {
-            console.log('connected');
-        });
-    } catch (error) {
-        console.error('Failed to connect wallet', error);
-    }
+
+    
+   
+    await connectWallet();
 
     const payerPublicKey = wallet.publicKey;
 
     if (payerPublicKey !== null) {
-
-
 
         const clientPubKey = await configureClientAccount(connection, payerPublicKey, programId, wallet);
 
@@ -160,7 +175,7 @@ export async function main() {
         const instructionData = serialize(userDataSchema, userData);
 
         await transactWithProgram(connection, payerPublicKey, programId, clientPubKey, instructionData, wallet);
-
+        await wallet.disconnect();
         console.log('Success');
     }
 }
